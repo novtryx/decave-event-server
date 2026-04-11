@@ -1,5 +1,5 @@
 // src/attendees/attendees.controller.ts
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, Query } from '@nestjs/common';
 import { AttendeesService } from './attendees.service';
 import { CreateAttendeeDto } from './dto/create-attendees.dto';
 import { UpdateAttendeesDto } from './dto/update-attendees.dto';
@@ -19,6 +19,25 @@ export class AttendeesController {
   findAll() {
     return this.attendeesService.findAll();
   }
+
+  @Get("ref")
+  findByRef(@Query("ref") ref: string) {
+    return this.attendeesService.findByPaystackId(ref);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('event/:eventId')
+findByEventId(
+  @Param('eventId') eventId: string,
+  @Query('page') page: string = '1',
+  @Query('limit') limit: string = '20',
+) {
+  return this.attendeesService.findByEventId(
+    Number(eventId),
+    Number(page),
+    Number(limit),
+  );
+}
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')

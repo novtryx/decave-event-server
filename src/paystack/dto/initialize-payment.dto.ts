@@ -18,4 +18,4 @@ export class InitializePaymentDto {
     ticketId: string;
 
 
-}
+} 

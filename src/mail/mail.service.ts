@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import { generateTicketPDF, ticketEmailTemplate } from './template/ticket.mail';
 import { welcomeEmailTemplate } from './template/welcome.mail';
 import { verifyEmailTemplate } from './template/verify.mail';
+import { withdrawalRequestTemplate } from './template/withdrawal.mail';
 
 @Injectable()
 export class MailService {
@@ -58,6 +59,22 @@ async sendVerificationEmail({ user, verifyToken }: { user: { name: string; email
     subject: 'Verify Your Email Address',
     html: verifyEmailTemplate({ user, verifyLink }),
   });
+}
+async sendVerifyWithdrawalEmail({user, amount, accountName, accountNumber, bankName, approveLink}: any){
+  await this.transporter.sendMail({
+       from: '"DeCave" <info@decavemgt.com>',
+       to: process.env.ADMIN_EMAIL,
+       subject: `💸 Withdrawal Request — ₦${amount.toLocaleString('en-NG')} from ${user.name}`,
+       html: withdrawalRequestTemplate({
+         user,
+         amount,
+         accountName,
+         accountNumber,
+         bankName,
+         approveLink,
+       }),
+     });
+
 }
 
   async sendResetPasswordEmail({ email, name, resetLink }: any) {

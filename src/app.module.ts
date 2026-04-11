@@ -12,6 +12,7 @@ import { MailModule } from './mail/mail.module';
 import { CloudinaryService } from './cloudinary/cloudinary.service';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { UploadModule } from './upload/upload.module';
+import { PayoutsModule } from './payouts/payouts.module';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { UploadModule } from './upload/upload.module';
     CloudinaryModule,
 
     UploadModule,
+
+    PayoutsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PaystackService, CloudinaryService],

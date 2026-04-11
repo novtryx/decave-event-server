@@ -75,6 +75,27 @@ export class EventsService {
   return event;
 }
 
+ async findOneById(id: number): Promise<Event> {
+  const event = await this.eventsRepository.findOne({
+    where: { id }, // ✅ use name
+    relations: ["user"],
+    select: {
+      user: {
+        id: true,
+        name: true,
+        email: true,
+        businessName: true,
+      },
+    },
+  });
+
+  if (!event) {
+    throw new NotFoundException(`Event "${name}" not found`);
+  }
+
+  return event;
+}
+
   //we have fixes here
 
   // ─── Get Event By Title ───────────────────────────────────────
@@ -100,12 +121,25 @@ export class EventsService {
     });
   }
 
-  async findByEventIdAndTicketId(eventId: number, ticketId: string){
-    const event = await this.eventsRepository.findOneBy({ id: eventId })
-    const ticket = event?.tickets?.find((ticket) => ticket.id === ticketId)
+async findByEventIdAndTicketId(eventId: number, ticketId: string) {
+  const event = await this.eventsRepository.findOne({
+    where: { id: Number(eventId) },
+  });
 
-    return ticket
+  if (!event) {
+    throw new NotFoundException(`Event "${eventId}" not found`);
   }
+
+  if (!Array.isArray(event.tickets)) {
+    throw new Error(`Invalid tickets structure for event ${eventId}`);
+  }
+
+  const ticket = event.tickets.find(
+    (t) => String(t.id) === String(ticketId),
+  );
+
+  return ticket || null;
+}
 
   // ─── Get Events for a Specific User BY EMAIL WITH Attendees ─────────────
 async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
@@ -200,4 +234,46 @@ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
     await this.eventsRepository.remove(event);
     return { message: `Event #${id} deleted successfully` };
   }
+
+  async getDashboardOverview(userId: number) {
+  // all user events
+  const events = await this.eventsRepository.find({
+    where: { userId },
+    relations: ['attendees'],
+  });
+
+  const now = new Date();
+
+  // stats
+  const totalEvents = events.length;
+  const totalTicketsSold = events.reduce((acc, e) => acc + e.attendees.length, 0);
+  const totalRevenue = events.reduce(
+    (acc, e) => acc + e.attendees.reduce((sum, a) => sum + Number(a.amount), 0),
+    0,
+  );
+  const totalAttendees = totalTicketsSold; // same thing — each attendee = one ticket
+
+  // upcoming events (future date, sorted soonest first, max 5)
+  const upcomingEvents = events
+    .filter((e) => new Date(e.eventDate) > now)
+    .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
+    .slice(0, 5)
+    .map((e) => ({
+      id: e.id,
+      title: e.title,
+      eventDate: e.eventDate,
+      venue: e.venue,
+      ticketsSold: e.attendees.length,
+    }));
+
+  return {
+    stats: {
+      totalEvents,
+      totalTicketsSold,
+      totalRevenue,
+      totalAttendees,
+    },
+    upcomingEvents,
+  };
+}
 }
