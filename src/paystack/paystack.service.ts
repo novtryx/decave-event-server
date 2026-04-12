@@ -36,7 +36,7 @@ export class PaystackService {
         amount: amount * 100,
         reference,
         metadata: { tickets: ticketsMetadata },
-        callback_url: 'http://localhost:3000/events/verify', 
+        callback_url: `${process.env.FRONTEND_URL}/events/verify`, 
       },
       {
         headers: {
