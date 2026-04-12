@@ -32,7 +32,7 @@ export class EventsController {
     return this.eventsService.create(dto, req.user.id);
   }
 @UseGuards(JwtAuthGuard)
-@Get('dashboard-overview')
+@Get('dashboard-overview') 
 getDashboardOverview(@Req() req: any) {
   return this.eventsService.getDashboardOverview(req.user.id);
 }

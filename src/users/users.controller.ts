@@ -37,9 +37,14 @@ export class UsersController {
     return this.usersService.login(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
+@Get('me')
+getMe(@Req() req: any) {
+  return this.usersService.findOne(req.user.id);
+}
   // GET /users — protected
   @UseGuards(JwtAuthGuard)
-  @Get()
+  @Get() 
   findAll() {
     return this.usersService.findAll();
   }
