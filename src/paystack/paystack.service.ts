@@ -125,6 +125,8 @@ if (isNaN(eventId)) {
           paystackId: data.reference,
           checkedIn: false,
           amount: ticket.price,
+          location: item.location,
+          howDidYouHearAboutUs: item.howDidYouHearAboutUs
         });
 
         // QR generation

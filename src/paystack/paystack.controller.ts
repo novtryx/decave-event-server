@@ -41,6 +41,8 @@ async initialize(@Body() body: InitializePaymentDto[]) {
       name: item.name,
       email: item.email,
       phone: item.phone,
+      location: item.location,
+      howDidYouHearAboutUs: item.howDidYouHearAboutUs,
       ticketType: ticket.type,
       amount: ticket.price,
     });

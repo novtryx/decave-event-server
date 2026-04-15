@@ -1,4 +1,4 @@
-import { IsEmail, IsEmpty, IsNotEmpty, IsNumber, IsString, minLength } from "class-validator";
+import { IsEmail, IsEmpty, IsNotEmpty, IsNumber, IsOptional, IsString, minLength } from "class-validator";
 
 export class InitializePaymentDto {
     @IsEmail()
@@ -10,6 +10,14 @@ export class InitializePaymentDto {
     @IsString()
     phone: string;
 
+
+     @IsString()
+      @IsOptional()
+      location?: string;
+    
+      @IsString()
+      @IsOptional()
+      howDidYouHearAboutUs?: string;
 
   @IsNumber()
   @IsNotEmpty({ message: 'eventId is required' })
