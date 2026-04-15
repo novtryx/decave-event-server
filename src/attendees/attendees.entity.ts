@@ -38,6 +38,12 @@ export class Attendees {
   @Column({ type: 'varchar' })
   phone: string;
 
+   @Column({ type: 'varchar', nullable: true, default: null })
+  location: string | null;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  howDidYouHearAboutUs: string | null;
+
   @ManyToOne(() => Event, (event) => event.attendees, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'eventId' })
   event: Event;

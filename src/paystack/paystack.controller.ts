@@ -22,7 +22,6 @@ async initialize(@Body() body: InitializePaymentDto[]) {
   const ticketsMetadata: any = [];
 
   for (const item of body) {
-    // fetch ticket from DB
     const ticket = await this.eventService.findByEventIdAndTicketId(
       item.eventId,
       item.ticketId,
@@ -36,19 +35,29 @@ async initialize(@Body() body: InitializePaymentDto[]) {
 
     totalAmount += Number(ticket.price);
 
-    // store metadata to send to Paystack
     ticketsMetadata.push({
       eventId: item.eventId,
       ticketId: item.ticketId,
       name: item.name,
       email: item.email,
       phone: item.phone,
-      ticketType: ticket.type, // ✅ get from DB
+      ticketType: ticket.type,
       amount: ticket.price,
     });
   }
 
-  const email = body[0].email; // main buyer email
+  // ─── Fetch event to check organizerPays ──────────────────────
+  const event = await this.eventService.findOneById(body[0].eventId);
+
+  if (!event) {
+    throw new NotFoundException(`Event not found`);
+  }
+
+  if (!event.organizerPays) {
+    totalAmount = totalAmount * 1.065; // attendee bears 6% fee
+  }
+
+  const email = body[0].email;
 
   const payment = await this.paystackService.initializePaymentWithMetadata(
     ticketsMetadata,
@@ -56,14 +65,11 @@ async initialize(@Body() body: InitializePaymentDto[]) {
     totalAmount,
   );
 
-  return {
+ return {
     totalAmount,
     payment,
   };
 }
-
-
-
 
  
 

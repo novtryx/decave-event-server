@@ -29,4 +29,12 @@ export class CreateAttendeeDto {
 
   @IsNumber()
   eventId: number;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  howDidYouHearAboutUs?: string;
 }

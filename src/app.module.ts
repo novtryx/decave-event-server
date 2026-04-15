@@ -14,8 +14,10 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { UploadModule } from './upload/upload.module';
 import { PayoutsModule } from './payouts/payouts.module';
 
+
 @Module({
   imports: [
+ 
      ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -24,7 +26,7 @@ import { PayoutsModule } from './payouts/payouts.module';
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: true, // ⚠️ dev only
-        ssl: {
+        ssl: { 
           rejectUnauthorized: false, // IMPORTANT for Neon
         },
       }),
@@ -45,6 +47,7 @@ import { PayoutsModule } from './payouts/payouts.module';
     UploadModule,
 
     PayoutsModule,
+
   ],
   controllers: [AppController],
   providers: [AppService, PaystackService, CloudinaryService],

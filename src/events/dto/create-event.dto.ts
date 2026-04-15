@@ -9,6 +9,7 @@ import {
   IsNumber,
   Min,
   IsUrl,
+  ArrayMaxSize,
 } from 'class-validator';
 
 export class CreateTicketDto {
@@ -67,6 +68,11 @@ export class CreateEventDto {
   @IsUrl()
   banner: string;
 
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(4)
+  @IsOptional()
+  otherImages?: string[];
 
   @IsArray()
   @ValidateNested({ each: true })

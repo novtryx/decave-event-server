@@ -32,33 +32,49 @@ export class PayoutsService {
   // ─── Summary ────────────────────────────────────────────────────────────────
 
   async getSummary(userId: number) {
-    // total revenue = sum of all ticket amounts across all user's events
-    const revenueResult = await this.attendeesRepo
-      .createQueryBuilder('attendee')
-      .innerJoin('attendee.event', 'event')
-      .where('event.userId = :userId', { userId })
-      .select('SUM(attendee.amount)', 'total')
-      .getRawOne();
+  // Revenue from events where organizerPays = true (organizer bears 6.5% fee)
+  const organizerPaysResult = await this.attendeesRepo
+    .createQueryBuilder('attendee')
+    .innerJoin('attendee.event', 'event')
+    .where('event.userId = :userId', { userId })
+    .andWhere('event.organizerPays = :val', { val: true })
+    .select('SUM(attendee.amount)', 'total')
+    .getRawOne();
 
-    const totalRevenue = Number(revenueResult?.total ?? 0);
+  const organizerPaysRevenue = Number(organizerPaysResult?.total ?? 0);
+  const organizerPaysNet = organizerPaysRevenue * (1 - 0.065); // deduct 6.5%
 
-    // total withdrawn = sum of completed withdrawals only
-    const withdrawnResult = await this.withdrawalRepo
-      .createQueryBuilder('w')
-      .where('w.userId = :userId', { userId })
-      .andWhere('w.status = :status', { status: 'completed' })
-      .select('SUM(w.amount)', 'total')
-      .getRawOne();
+  // Revenue from events where organizerPays = false (attendee already paid the fee)
+  const attendeePaysResult = await this.attendeesRepo
+    .createQueryBuilder('attendee')
+    .innerJoin('attendee.event', 'event')
+    .where('event.userId = :userId', { userId })
+    .andWhere('event.organizerPays = :val', { val: false })
+    .select('SUM(attendee.amount)', 'total')
+    .getRawOne();
 
-    const totalWithdrawn = Number(withdrawnResult?.total ?? 0);
-    const availableBalance = totalRevenue - totalWithdrawn;
+  const attendeePaysRevenue = Number(attendeePaysResult?.total ?? 0);
 
-    return {
-      totalRevenue,
-      totalWithdrawn,
-      availableBalance,
-    };
-  }
+  // Total revenue = clean attendee-pays revenue + net organizer-pays revenue
+  const totalRevenue = attendeePaysRevenue + organizerPaysNet;
+
+  // total withdrawn = sum of completed withdrawals only
+  const withdrawnResult = await this.withdrawalRepo
+    .createQueryBuilder('w')
+    .where('w.userId = :userId', { userId })
+    .andWhere('w.status = :status', { status: 'completed' })
+    .select('SUM(w.amount)', 'total')
+    .getRawOne();
+
+  const totalWithdrawn = Number(withdrawnResult?.total ?? 0);
+  const availableBalance = totalRevenue - totalWithdrawn;
+
+  return {
+    totalRevenue,
+    totalWithdrawn,
+    availableBalance,
+  };
+}
 
   // ─── Withdrawal History ──────────────────────────────────────────────────────
 

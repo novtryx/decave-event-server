@@ -55,6 +55,9 @@ export class Event {
   @Column({ type: 'varchar', nullable: true, default: null })
   banner: string | null;
 
+   @Column({ type: 'jsonb', nullable: true, default: null })
+  otherImages: string[] | null;
+
   // ─── Tickets stored as array of objects in jsonb ──────────────
   @Column({ type: 'jsonb', default: [] })
   tickets: Ticket[];
