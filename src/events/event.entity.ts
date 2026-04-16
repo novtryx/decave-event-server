@@ -46,8 +46,9 @@ export class Event {
   @Column({ type: 'varchar' })
   address: string;
 
-  @Column({ type: 'timestamp' })
+    @Column({ type: 'datetime' }) // ✅ was timestamp
   eventDate: Date;
+
 
   @Column({ type: 'varchar', nullable: true, default: null })
   theme: string | null;
@@ -55,11 +56,11 @@ export class Event {
   @Column({ type: 'varchar', nullable: true, default: null })
   banner: string | null;
 
-   @Column({ type: 'jsonb', nullable: true, default: null })
-  otherImages: string[] | null;
+    @Column({ type: 'json', nullable: true, default: null }) // ✅ was jsonb default []
+  otherImages:string[] | null;
 
   // ─── Tickets stored as array of objects in jsonb ──────────────
-  @Column({ type: 'jsonb', default: [] })
+   @Column({ type: 'json', nullable: true, default: null }) // ✅ was jsonb default []
   tickets: Ticket[];
 
   @Column({type: 'boolean', default: false})

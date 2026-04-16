@@ -19,18 +19,19 @@ import { PayoutsModule } from './payouts/payouts.module';
   imports: [
  
      ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        url: config.get<string>('DATABASE_URL'),
-        autoLoadEntities: true,
-        synchronize: true, // ⚠️ dev only
-        ssl: { 
-          rejectUnauthorized: false, // IMPORTANT for Neon
-        },
+        TypeOrmModule.forRootAsync({
+        inject: [ConfigService],
+        useFactory: (config: ConfigService) => ({
+          type: 'mysql',
+          host: config.get<string>('DB_HOST'),
+          port: config.get<number>('DB_PORT') || 3306,
+          username: config.get<string>('DB_USERNAME'),
+          password: config.get<string>('DB_PASSWORD'),
+          database: config.get<string>('DB_NAME'),
+          autoLoadEntities: true,
+          synchronize: false, // ⚠️ dev only
+        }),
       }),
-    }),
 
     UsersModule,
 

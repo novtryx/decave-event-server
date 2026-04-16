@@ -39,13 +39,13 @@ export class User {
    @Column({ type: 'varchar', nullable: true })
 resetToken: string | null;
 
-@Column({ type: 'timestamp', nullable: true })
+@Column({ type: 'datetime', nullable: true })
 resetTokenExpiry: Date | null;
 
   @Column()
   address: string;
  
-  @Column({ type: 'timestamp', nullable: true, default: null })
+  @Column({ type: 'datetime', nullable: true, default: null })
   emailVerified: Date | null;  // 👈 nullable
 
   @Column(() => Socials)

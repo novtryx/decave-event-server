@@ -29,9 +29,9 @@ export class Attendees {
   @Column({ type: 'varchar', nullable: true, default: null })
   qrCode: string | null;
 
-  @Column({ type: 'numeric', precision: 10, scale: 2 }) // 👈 proper money type
+   @Column({ type: 'decimal', precision: 10, scale: 2 }) // ✅ was numeric
   amount: number;
-
+  
   @Column({ type: 'varchar' })
   ticketType: string;
 
