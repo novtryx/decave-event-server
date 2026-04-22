@@ -5,6 +5,7 @@ import { generateTicketPDF, ticketEmailTemplate } from './template/ticket.mail';
 import { welcomeEmailTemplate } from './template/welcome.mail';
 import { verifyEmailTemplate } from './template/verify.mail';
 import { withdrawalRequestTemplate } from './template/withdrawal.mail';
+import { eventApprovalTemplate } from './template/eventApproval.mail';
 
 @Injectable()
 export class MailService {
@@ -76,6 +77,39 @@ async sendVerifyWithdrawalEmail({user, amount, accountName, accountNumber, bankN
      });
 
 }
+
+async sendEventApprovalRequestEmail({
+  event,
+  organizer,
+  approveLink,
+}: {
+  event: {
+    title: string;
+    type: string;
+    eventDate: Date;
+    venue: string;
+    address: string;
+  };
+  organizer: {
+    name: string;
+    email: string;
+    businessName?: string;
+  };
+  approveLink: string;
+}) {
+  await this.transporter.sendMail({
+    from: '"DeCave" <info@decavemgt.com>',
+    to: process.env.ADMIN_EMAIL,
+    subject: `🆕 Event Approval — ${event.title} by ${organizer.name}`,
+    html: eventApprovalTemplate({
+      event,
+      organizer,
+      approveLink,
+    }),
+  });
+}
+
+
 
   async sendResetPasswordEmail({ email, name, resetLink }: any) {
   await this.transporter.sendMail({

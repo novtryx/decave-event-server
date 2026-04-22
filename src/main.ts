@@ -15,11 +15,11 @@ async function bootstrap() {
     credentials: true,
   });
   app.use( 
-  helmet({
+  helmet({ 
     contentSecurityPolicy: process.env.NODE_ENV === 'production', // CSP on in prod, off in dev
-  }),
+  }), 
 );
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api'); 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,        // strips unknown field

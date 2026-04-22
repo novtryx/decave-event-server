@@ -5,18 +5,28 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, MoreThan } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Ticket } from './event.entity';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { UpdateTicketQtyDto } from './dto/update-ticket-qty.dto';
+import { MailService } from 'src/mail/mail.service';
+import { User } from 'src/users/user.entity';
+import { EventVisit } from './eventVisit.entity';
 
 @Injectable()
 export class EventsService {
   constructor(
     @InjectRepository(Event)
     private readonly eventsRepository: Repository<Event>,
+
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+
+    @InjectRepository(EventVisit)
+    private readonly visitRepository: Repository<EventVisit>,
+    private readonly mailService: MailService,
   ) {}
 
   // ─── Create Event ─────────────────────────────────────────────
@@ -24,7 +34,7 @@ export class EventsService {
     const tickets: Ticket[] = dto.tickets.map((ticket) => ({
       ...ticket,
       id: uuidv4(),
-      qtySold: 0, // always start at 0
+      qtySold: 0,
       startDate: new Date(ticket.startDate),
       stopdate: new Date(ticket.stopdate),
     }));
@@ -34,9 +44,54 @@ export class EventsService {
       eventDate: new Date(dto.eventDate),
       tickets,
       userId,
+      approved: false,
     });
 
-    return this.eventsRepository.save(event);
+    // ✅ FIX 1: await once, use directly — no more multiple awaits
+    const savedEvent = await this.eventsRepository.save(event);
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'name', 'email', 'businessName'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('Organizer not found');
+    }
+
+    const approveLink = `${process.env.BACKEND_URL}/events/approve/${savedEvent.id}`;
+
+    await this.mailService.sendEventApprovalRequestEmail({
+      event: {
+        title: savedEvent.title,
+        type: savedEvent.type,
+        eventDate: savedEvent.eventDate,
+        venue: savedEvent.venue,
+        address: savedEvent.address,
+      },
+      organizer: {
+        name: user.name,
+        email: user.email,
+        businessName: user.businessName,
+      },
+      approveLink,
+    });
+
+    return savedEvent;
+  }
+
+  // ─── Approve Event ────────────────────────────────────────────
+  async approveEvent(id: number) {
+    const event = await this.eventsRepository.findOneBy({ id });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    event.approved = true;
+    await this.eventsRepository.save(event);
+
+    return { message: 'Event approved successfully' };
   }
 
   // ─── Get All Events ───────────────────────────────────────────
@@ -50,58 +105,96 @@ export class EventsService {
     });
   }
 
+  // ─── Get Approved Events ──────────────────────────────────────
+  async findApproved(page = 1, limit = 10) {
+    const [data, total] = await this.eventsRepository.findAndCount({
+      where: { approved: true, visibilty: true, eventDate: MoreThan(new Date()) },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-//we have fixes here
+    return {
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  // ─── Track Visit ──────────────────────────────────────────────
+  async trackVisit(eventId: number, ip?: string, userAgent?: string) {
+    const event = await this.eventsRepository.findOne({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    const exists = await this.visitRepository.findOne({
+      where: {
+        eventId,
+        ipAddress: ip,
+      },
+    });
+
+    if (exists) return; // prevent duplicate spam
+
+    // ✅ FIX 2: userAgent is now saved
+    return this.visitRepository.save(
+      this.visitRepository.create({ eventId, ipAddress: ip, userAgent }),
+    );
+  }
+
+  // ─── Get Event By Title (exact) ───────────────────────────────
+  async findOne(name: string): Promise<Event> {
+    const event = await this.eventsRepository.findOne({
+      where: { title: ILike(name) }, // ✅ FIX 3: case-insensitive
+      relations: ['user'],
+      select: {
+        user: {
+          id: true,
+          name: true,
+          email: true,
+          businessName: true,
+        },
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Event "${name}" not found`);
+    }
+
+    return event;
+  }
 
   // ─── Get Event By ID ──────────────────────────────────────────
-  async findOne(name: string): Promise<Event> {
-  const event = await this.eventsRepository.findOne({
-    where: { title: name }, // ✅ use name
-    relations: ["user"],
-    select: {
-      user: {
-        id: true,
-        name: true,
-        email: true,
-        businessName: true,
+  async findOneById(id: number): Promise<Event> {
+    const event = await this.eventsRepository.findOne({
+      where: { id },
+      relations: ['user'],
+      select: {
+        user: {
+          id: true,
+          name: true,
+          email: true,
+          businessName: true,
+        },
       },
-    },
-  });
+    });
 
-  if (!event) {
-    throw new NotFoundException(`Event "${name}" not found`);
+    if (!event) {
+      throw new NotFoundException(`Event #${id} not found`); // ✅ FIX 4: was using undefined `name`
+    }
+
+    return event;
   }
 
-  return event;
-}
-
- async findOneById(id: number): Promise<Event> {
-  const event = await this.eventsRepository.findOne({
-    where: { id }, // ✅ use name
-    relations: ["user"],
-    select: {
-      user: {
-        id: true,
-        name: true,
-        email: true,
-        businessName: true,
-      },
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundException(`Event "${name}" not found`);
-  }
-
-  return event;
-}
-
-  //we have fixes here
-
-  // ─── Get Event By Title ───────────────────────────────────────
+  // ─── Get Event By Title (search) ──────────────────────────────
   async findByTitle(title: string): Promise<Event[]> {
     const events = await this.eventsRepository.find({
-      where: { title: ILike(`%${title}%`) }, // case-insensitive search
+      where: { title: ILike(`%${title}%`) },
       relations: ['user'],
       select: {
         user: { id: true, name: true, email: true, businessName: true },
@@ -121,36 +214,36 @@ export class EventsService {
     });
   }
 
-async findByEventIdAndTicketId(eventId: number, ticketId: string) {
-  const event = await this.eventsRepository.findOne({
-    where: { id: Number(eventId) },
-  });
+  // ─── Get Event + Ticket By IDs ────────────────────────────────
+  async findByEventIdAndTicketId(eventId: number, ticketId: string) {
+    const event = await this.eventsRepository.findOne({
+      where: { id: Number(eventId) },
+    });
 
-  if (!event) {
-    throw new NotFoundException(`Event "${eventId}" not found`);
+    if (!event) {
+      throw new NotFoundException(`Event "${eventId}" not found`);
+    }
+
+    if (!Array.isArray(event.tickets)) {
+      throw new Error(`Invalid tickets structure for event ${eventId}`);
+    }
+
+    const ticket = event.tickets.find(
+      (t) => String(t.id) === String(ticketId),
+    );
+
+    return ticket || null;
   }
 
-  if (!Array.isArray(event.tickets)) {
-    throw new Error(`Invalid tickets structure for event ${eventId}`);
-  }
-
-  const ticket = event.tickets.find(
-    (t) => String(t.id) === String(ticketId),
-  );
-
-  return ticket || null;
-}
-
-  // ─── Get Events for a Specific User BY EMAIL WITH Attendees ─────────────
-async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
+  // ─── Get Events With Attendees By Email ───────────────────────
+ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
   const events = await this.eventsRepository
     .createQueryBuilder('event')
     .leftJoinAndSelect('event.user', 'user')
-    .leftJoin('event.attendees', 'attendee')        // join but don't select
-    .loadRelationCountAndMap(                        // just load the count
-      'event.attendeesCount',                        // maps to this virtual field
-      'event.attendees'
-    )
+    .leftJoin('event.attendees', 'attendee')
+    .leftJoin('event.visits', 'visit')            // ✅ join visits
+    .loadRelationCountAndMap('event.attendeesCount', 'event.attendees')
+    .loadRelationCountAndMap('event.visitsCount', 'event.visits')  // ✅ count visits
     .where('user.email = :email', { email })
     .orderBy('event.createdAt', 'DESC')
     .getMany();
@@ -162,21 +255,23 @@ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
   return events;
 }
 
-
   // ─── Update Event ─────────────────────────────────────────────
   async update(id: number, dto: UpdateEventDto, userId: number): Promise<Event> {
     const event = await this.eventsRepository.findOneBy({ id });
     if (!event) throw new NotFoundException(`Event #${id} not found`);
     if (event.userId !== userId) throw new ForbiddenException('You do not own this event');
 
-    // Handle tickets update — preserve qtySold, regenerate ids for new tickets
-    if (dto.tickets) {
+    // ✅ FIX 5: explicit undefined check + guard against empty tickets array
+    if (dto.tickets !== undefined) {
+      if (dto.tickets.length === 0) {
+        throw new BadRequestException('Cannot remove all tickets from an event');
+      }
+
       const updatedTickets: Ticket[] = dto.tickets.map((ticket) => {
-        // check if ticket already exists (has matching type) to preserve qtySold
-        const existing = event.tickets.find((t) => t.type === ticket.type);
+        const existing = event.tickets?.find((t) => t.type === ticket.type);
         return {
           ...ticket,
-          id: existing ? existing.id : uuidv4(), // keep old id or generate new
+          id: existing ? existing.id : uuidv4(),
           qtySold: existing ? existing.qtySold : 0, // preserve sales
           startDate: new Date(ticket.startDate),
           stopdate: new Date(ticket.stopdate),
@@ -185,7 +280,6 @@ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
       event.tickets = updatedTickets;
     }
 
-    // Update all other fields except tickets (already handled above)
     const { tickets, ...rest } = dto;
     Object.assign(event, {
       ...rest,
@@ -199,6 +293,11 @@ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
   async updateTicketQty(eventId: number, dto: UpdateTicketQtyDto): Promise<Event | null> {
     const event = await this.eventsRepository.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException(`Event #${eventId} not found`);
+
+    // ✅ FIX 6: guard before touching tickets — prevents overwriting with null/garbage
+    if (!event.tickets || !Array.isArray(event.tickets) || event.tickets.length === 0) {
+      throw new BadRequestException('Event has no tickets to update');
+    }
 
     const ticketIndex = event.tickets.findIndex((t) => t.id === dto.ticketId);
     if (ticketIndex === -1) throw new NotFoundException(`Ticket not found`);
@@ -214,7 +313,6 @@ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
 
     event.tickets[ticketIndex] = { ...ticket, qtySold: newQtySold };
 
-    // mark jsonb as modified so TypeORM detects the change
     await this.eventsRepository
       .createQueryBuilder()
       .update(Event)
@@ -235,45 +333,42 @@ async findEventsWithAttendeesByEmail(email: string): Promise<Event[]> {
     return { message: `Event #${id} deleted successfully` };
   }
 
+  // ─── Dashboard Overview ───────────────────────────────────────
   async getDashboardOverview(userId: number) {
-  // all user events
-  const events = await this.eventsRepository.find({
-    where: { userId },
-    relations: ['attendees'],
-  });
+    const events = await this.eventsRepository.find({
+      where: { userId },
+      relations: ['attendees'],
+    });
 
-  const now = new Date();
+    const now = new Date();
 
-  // stats
-  const totalEvents = events.length;
-  const totalTicketsSold = events.reduce((acc, e) => acc + e.attendees.length, 0);
-  const totalRevenue = events.reduce(
-    (acc, e) => acc + e.attendees.reduce((sum, a) => sum + Number(a.amount), 0),
-    0,
-  );
-  const totalAttendees = totalTicketsSold; // same thing — each attendee = one ticket
+    const totalEvents = events.length;
+    const totalTicketsSold = events.reduce((acc, e) => acc + e.attendees.length, 0);
+    const totalRevenue = events.reduce(
+      (acc, e) => acc + e.attendees.reduce((sum, a) => sum + Number(a.amount), 0),
+      0,
+    );
 
-  // upcoming events (future date, sorted soonest first, max 5)
-  const upcomingEvents = events
-    .filter((e) => new Date(e.eventDate) > now)
-    .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
-    .slice(0, 5)
-    .map((e) => ({
-      id: e.id,
-      title: e.title,
-      eventDate: e.eventDate,
-      venue: e.venue,
-      ticketsSold: e.attendees.length,
-    }));
+    const upcomingEvents = events
+      .filter((e) => new Date(e.eventDate) > now)
+      .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
+      .slice(0, 5)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        eventDate: e.eventDate,
+        venue: e.venue,
+        ticketsSold: e.attendees.length,
+      }));
 
-  return {
-    stats: {
-      totalEvents,
-      totalTicketsSold,
-      totalRevenue,
-      totalAttendees,
-    },
-    upcomingEvents,
-  };
-}
+    return {
+      stats: {
+        totalEvents,
+        totalTicketsSold,
+        totalRevenue,
+        // ✅ FIX 7: removed duplicate totalAttendees (was identical to totalTicketsSold)
+      },
+      upcomingEvents,
+    };
+  }
 }

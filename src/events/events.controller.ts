@@ -46,10 +46,38 @@ getDashboardOverview(@Req() req: any) {
     return this.eventsService.findEventsWithAttendeesByEmail(req.user.email);
   }
 
+  @Get('approved')
+async getApprovedEvents(
+  @Query('page') page?: string,
+  @Query('limit') limit?: string,
+) {
+  return this.eventsService.findApproved(
+    page ? parseInt(page) : 1,
+    limit ? parseInt(limit) : 10,
+  );
+}
+
+  @Get('approve/:id')
+async approve(@Param('id') id: number) {
+  return this.eventsService.approveEvent(Number(id));
+}
+
+@Post(':id/visit')
+async trackEventVisit(
+  @Param('id') id: number,
+  @Req() req: any,
+) {
+  return this.eventsService.trackVisit(
+    Number(id),
+    req.ip,
+    req.headers['user-agent'],
+  );
+}
+
   // GET /events — public
   @Get()
   findAll() {
-    return this.eventsService.findAll();
+    return this.eventsService.findAll(); 
   }
 
   // GET /events/search?title=concert — public

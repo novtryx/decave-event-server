@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Attendees } from 'src/attendees/attendees.entity';
+import { EventVisit } from './eventVisit.entity';
 
 // ─── Ticket Type (plain class, no decorators) ─────────────────
 export class Ticket {
@@ -53,15 +54,20 @@ export class Event {
   @Column({ type: 'varchar', nullable: true, default: null })
   theme: string | null;
 
+  @Column({ type: 'boolean', nullable: true, default: false })
+  approved: boolean | null;
+
   @Column({ type: 'varchar', nullable: true, default: null })
   banner: string | null;
 
-    @Column({ type: 'json', nullable: true, default: null }) // ✅ was jsonb default []
+    @Column({ type: 'json', nullable: true }) // ✅ was jsonb default []
   otherImages:string[] | null;
 
+  @OneToMany(() => EventVisit, (visit) => visit.event)
+visits: EventVisit[];
   // ─── Tickets stored as array of objects in jsonb ──────────────
-   @Column({ type: 'json', nullable: true, default: null }) // ✅ was jsonb default []
-  tickets: Ticket[];
+  @Column({ type: 'json', nullable: true })
+tickets: Ticket[];
 
   @Column({type: 'boolean', default: false})
   organizerPays: boolean;

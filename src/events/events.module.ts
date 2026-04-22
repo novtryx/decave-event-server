@@ -9,13 +9,16 @@ import { JwtStrategy } from '../auth/jwt.strategy';
 import { User } from '../users/user.entity';
 import { Event } from './event.entity';
 import { Attendees } from '../attendees/attendees.entity';
+import { MailModule } from 'src/mail/mail.module';
+import { EventVisit } from './eventVisit.entity';
 
 @Module({
   
   imports: [
     
-    TypeOrmModule.forFeature([User, Event, Attendees]),
+    TypeOrmModule.forFeature([User, Event, Attendees, EventVisit]),
     PassportModule,
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
