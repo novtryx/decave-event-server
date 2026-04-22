@@ -9,6 +9,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'https://decave-events.vercel.app',
+      'https://decavemgt.com',
       process.env.FRONTEND_URL
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
