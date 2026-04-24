@@ -8,11 +8,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from 'src/auth/jwt.strategy';
 import { Event } from '../events/event.entity';
-import { MailModule } from 'src/mail/mail.module';
+import { MailModule } from '../mail/mail.module';
+import { Vote } from '../vote/vote.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Event]),
+    TypeOrmModule.forFeature([User, Event, Vote]),
     PassportModule,
     MailModule,
     JwtModule.registerAsync({

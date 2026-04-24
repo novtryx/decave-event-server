@@ -6,36 +6,71 @@ import {
   UploadedFiles,
   UseInterceptors,
   BadRequestException,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { CloudinaryService, CloudinaryUploadResult } from '../cloudinary/cloudinary.service';
+import { memoryStorage } from 'multer';
+
+
+interface UploadResponse {
+  message: string;
+  url: string;
+  publicId: string;
+  format: string;
+  bytes: number;
+}
+
 
 @Controller('upload')
 export class UploadController {
+    private readonly logger = new Logger(UploadController.name);
+
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   // Single file upload
-  @Post('single')
-  @UseInterceptors( 
+ @Post('single')
+  @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp|pdf)$/)) {
-          return cb(new BadRequestException('Unsupported file type'), false);
-        }
-        cb(null, true);
-      },
+      // Force memory storage — never write temp files to disk
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
     }),
   )
-  async uploadSingle(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No file provided');
+  async uploadSingle(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /image\/(jpg|jpeg|png|gif|webp)|application\/pdf/ }),
+        ],
+        errorHttpStatusCode: 422,
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<UploadResponse> {
+    try {
+      const result: CloudinaryUploadResult =
+        await this.cloudinaryService.uploadFile(file);
 
-    const result = await this.cloudinaryService.uploadFile(file);
-    return {
-      message: 'File uploaded successfully',
-      url: result.secure_url,
-      public_id: result.public_id,
-    };
+      return {
+        message: 'File uploaded successfully',
+        url: result.secureUrl,       // always return HTTPS
+        publicId: result.publicId,
+        format: result.format,
+        bytes: result.bytes,
+      };
+    } catch (error) {
+      // Re-throw NestJS HTTP exceptions as-is
+      if (error?.status) throw error;
+
+      this.logger.error('Unexpected upload error', error);
+      throw new InternalServerErrorException('Upload failed. Please try again.');
+    }
   }
 
   // Multiple files upload (up to 5)
@@ -54,7 +89,7 @@ export class UploadController {
 
     return {
       message: 'Files uploaded successfully',
-      files: results.map((r) => ({ url: r.secure_url, public_id: r.public_id })),
+      files: results.map((r) => ({ url: r.secureUrl, public_id: r.publicId })),
     };
   }
 }

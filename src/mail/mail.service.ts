@@ -6,6 +6,7 @@ import { welcomeEmailTemplate } from './template/welcome.mail';
 import { verifyEmailTemplate } from './template/verify.mail';
 import { withdrawalRequestTemplate } from './template/withdrawal.mail';
 import { eventApprovalTemplate } from './template/eventApproval.mail';
+import { VoteApprovalTemplate } from './template/voteApproval.mail';
 
 @Injectable()
 export class MailService {
@@ -109,6 +110,36 @@ async sendEventApprovalRequestEmail({
   });
 }
 
+async sendVoteApprovalRequestEmail({
+  vote,
+  organizer,
+  approveLink,
+}: {
+  vote: {
+    title: string;
+    edition: string;
+    voteStart: Date;
+    voteEnd: Date;
+
+  };
+  organizer: {
+    name: string;
+    email: string;
+    businessName?: string;
+  };
+  approveLink: string;
+}) {
+  await this.transporter.sendMail({
+    from: '"DeCave" <info@decavemgt.com>',
+    to: process.env.ADMIN_EMAIL,
+    subject: `🆕 Event Approval — ${vote.title} by ${organizer.name}`,
+    html: VoteApprovalTemplate({
+      vote,
+      organizer,
+      approveLink,
+    }),
+  });
+}
 
 
   async sendResetPasswordEmail({ email, name, resetLink }: any) {
