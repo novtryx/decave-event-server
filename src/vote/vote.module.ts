@@ -14,6 +14,7 @@ import { JwtStrategy } from 'src/auth/jwt.strategy';
     MailModule
   ],
   providers: [VoteService, JwtStrategy],
-  controllers: [VoteController]
+  controllers: [VoteController],
+  exports:[VoteService]
 })
 export class VoteModule {}

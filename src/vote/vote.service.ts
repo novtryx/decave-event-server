@@ -34,7 +34,7 @@ export class VoteService {
   async create(dto: CreateVoteDto, userId: number): Promise<Vote> {
     const contestants: Contestant[] = (dto.contestants ?? []).map((c) => ({
       ...c,
-      id: uuidv4(),
+      id: uuidv4(), 
       totalVote: 0,
     }));
 
@@ -176,22 +176,21 @@ export class VoteService {
   }
 
   // ─── Search Votes By Title ────────────────────────────────────
-  async findByTitle(title: string): Promise<Vote[]> {
-    const votes = await this.votesRepository.find({
-      where: { title: ILike(`%${title}%`) },
-      relations: ['user'],
-      select: {
-        user: { id: true, name: true, email: true, businessName: true },
-      },
-      order: { createdAt: 'DESC' },
-    });
+ async findByTitle(title: string): Promise<Vote> {
+  const vote = await this.votesRepository.findOne({
+    where: { title }, // exact match
+    relations: ['user'],
+    select: {
+      user: { id: true, name: true, email: true, businessName: true },
+    },
+  });
 
-    if (!votes.length) {
-      throw new NotFoundException(`No votes found matching "${title}"`);
-    }
-
-    return votes;
+  if (!vote) {
+    throw new NotFoundException(`No vote found with title "${title}"`);
   }
+
+  return vote;
+}
 
   // ─── Get Votes By User ────────────────────────────────────────
   async findByUser(userId: number): Promise<Vote[]> {
@@ -290,37 +289,41 @@ export class VoteService {
   }
 
   // ─── Update Vote ──────────────────────────────────────────────
-  async update(id: string, dto: UpdateVoteDto, userId: number): Promise<Vote> {
-    const vote = await this.votesRepository.findOneBy({ id });
-    if (!vote) throw new NotFoundException(`Vote #${id} not found`);
-    if (vote.userId !== userId) throw new ForbiddenException('You do not own this vote');
+ async update(id: string, dto: UpdateVoteDto, userId: number): Promise<Vote> {
+  const vote = await this.votesRepository.findOneBy({ id });
+  if (!vote) throw new NotFoundException(`Vote #${id} not found`);
+  if (vote.userId !== userId) throw new ForbiddenException('You do not own this vote');
 
-    if (dto.contestants !== undefined) {
-      if (dto.contestants.length === 0) {
-        throw new BadRequestException('Cannot remove all contestants from a vote');
-      }
-
-      const updatedContestants: Contestant[] = dto.contestants.map((c) => {
-        const existing = vote.contestants?.find((ec) => ec.id === c.id);
-        return {
-          ...c,
-          id: existing ? existing.id : uuidv4(),
-          totalVote: existing ? existing.totalVote : 0, // preserve vote counts
-        };
-      });
-
-      vote.contestants = updatedContestants;
+  if (dto.contestants !== undefined) {
+    if (dto.contestants.length === 0) {
+      throw new BadRequestException('Cannot remove all contestants from a vote');
     }
 
-    const { contestants, ...rest } = dto;
-    Object.assign(vote, {
-      ...rest,
-      ...(dto.voteStart && { voteStart: new Date(dto.voteStart) }),
-      ...(dto.voteEnd && { voteEnd: new Date(dto.voteEnd) }),
+    const updatedContestants: Contestant[] = dto.contestants.map((c) => {
+      // match by id first, then fall back to name match
+      const existing =
+        vote.contestants?.find((ec) => ec.id && c.id && ec.id === c.id) ??
+        vote.contestants?.find((ec) => ec.name === c.name);
+
+      return {
+        ...c,
+        id: existing?.id ?? uuidv4(),           // keep existing id or generate new
+        totalVote: existing ? Number(existing.totalVote) : 0, // ← always preserve
+      };
     });
 
-    return this.votesRepository.save(vote);
+    vote.contestants = updatedContestants;
   }
+
+  const { contestants, ...rest } = dto;
+  Object.assign(vote, {
+    ...rest,
+    ...(dto.voteStart && { voteStart: new Date(dto.voteStart) }),
+    ...(dto.voteEnd && { voteEnd: new Date(dto.voteEnd) }),
+  });
+
+  return this.votesRepository.save(vote);
+}
 
   // ─── Delete Vote ──────────────────────────────────────────────
   async remove(id: string, userId: number): Promise<{ message: string }> {
@@ -334,52 +337,96 @@ export class VoteService {
 
   // ─── Dashboard Overview ───────────────────────────────────────
   async getDashboardOverview(userId: number) {
-    const votes = await this.votesRepository.find({
-      where: { userId },
-    });
+  const votes = await this.votesRepository.find({
+    where: { userId },
+  });
 
-    const now = new Date();
+  const now = new Date();
+ 
+  // Total competitions created
+  const totalCompetitions = votes.length;
 
-    const totalVotes = votes.length;
+  // Safely parse totalVote — JSON columns can return strings
+  const safeVoteCount = (c: { totalVote: any }) => Number(c.totalVote) || 0;
 
-    const totalVotesCast = votes.reduce(
-      (acc, v) =>
-        acc + (v.contestants ?? []).reduce((sum, c) => sum + c.totalVote, 0),
-      0,
-    );
+  // Total votes cast across all competitions
+  const totalVotesCast = votes.reduce(
+    (acc, v) =>
+      acc + (v.contestants ?? []).reduce((sum, c) => sum + safeVoteCount(c), 0),
+    0,
+  );
 
-    const totalRevenue = votes
-      .filter((v) => v.pricing === 'paid')
-      .reduce(
-        (acc, v) =>
-          acc +
-          (v.contestants ?? []).reduce(
-            (sum, c) => sum + c.totalVote * Number(v.pricePerVote),
-            0,
-          ),
+  // Revenue only from paid competitions
+  const totalRevenue = votes
+    .filter((v) => v.pricing === 'paid')
+    .reduce((acc, v) => {
+      const pricePerVote = Number(v.pricePerVote) || 0;
+      const votesCast = (v.contestants ?? []).reduce(
+        (sum, c) => sum + safeVoteCount(c),
         0,
       );
+      return acc + votesCast * pricePerVote;
+    }, 0);
 
-    const upcomingVotes = votes
-      .filter((v) => new Date(v.voteEnd) > now)
-      .sort((a, b) => new Date(a.voteStart).getTime() - new Date(b.voteStart).getTime())
-      .slice(0, 5)
-      .map((v) => ({
+  // Active right now
+  const activeVotes = votes.filter(
+    (v) => new Date(v.voteStart) <= now && new Date(v.voteEnd) >= now,
+  ).length;
+
+  // Ended
+  const endedVotes = votes.filter((v) => new Date(v.voteEnd) < now).length;
+
+  // Upcoming (not started yet)
+  const upcomingCount = votes.filter(
+    (v) => new Date(v.voteStart) > now,
+  ).length;
+
+  // Upcoming + active competitions with their vote totals
+  const upcomingVotes = votes
+    .filter((v) => new Date(v.voteEnd) >= now)
+    .sort(
+      (a, b) =>
+        new Date(a.voteStart).getTime() - new Date(b.voteStart).getTime(),
+    )
+    .slice(0, 5)
+    .map((v) => {
+      const votesCast = (v.contestants ?? []).reduce(
+        (sum, c) => sum + safeVoteCount(c),
+        0,
+      );
+      const revenue =
+        v.pricing === 'paid' ? votesCast * (Number(v.pricePerVote) || 0) : 0;
+
+      return {
         id: v.id,
         title: v.title,
         edition: v.edition,
         voteStart: v.voteStart,
         voteEnd: v.voteEnd,
-        totalVotesCast: (v.contestants ?? []).reduce((sum, c) => sum + c.totalVote, 0),
-      }));
+        pricing: v.pricing,
+        approved: v.approved,
+        totalVotesCast: votesCast,
+        revenue,
+        contestantCount: (v.contestants ?? []).length,
+        // leading contestant
+        leader: (v.contestants ?? []).reduce(
+          (top, c) =>
+            safeVoteCount(c) > safeVoteCount(top) ? c : top,
+          v.contestants?.[0] ?? null,
+        ),
+      };
+    });
 
-    return {
-      stats: {
-        totalVotes,
-        totalVotesCast,
-        totalRevenue,
-      },
-      upcomingVotes,
-    };
-  }
+  return {
+    stats: {
+      totalCompetitions,
+      totalVotesCast,
+      totalRevenue,
+      activeVotes,
+      endedVotes,
+      upcomingCount,
+    },
+    upcomingVotes,
+  };
+}
 }

@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsBoolean,
@@ -36,6 +36,7 @@ export class CreateTicketDto {
 
 export class CreateEventDto {
   @IsString()
+  @Transform(({ value }) => value?.trim())
   title: string;
 
   @IsString()

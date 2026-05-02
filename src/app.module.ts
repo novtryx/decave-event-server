@@ -14,6 +14,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { UploadModule } from './upload/upload.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { VoteModule } from './vote/vote.module';
+import { ReminderModule } from './reminder/reminder.module';
 
 
 @Module({
@@ -32,7 +33,7 @@ import { VoteModule } from './vote/vote.module';
           autoLoadEntities: true,
           synchronize: false, 
         }),
-      }),
+      }), 
 
     UsersModule,
 
@@ -51,6 +52,8 @@ import { VoteModule } from './vote/vote.module';
     PayoutsModule,
 
     VoteModule,
+
+    ReminderModule,
 
   ],
   controllers: [AppController],

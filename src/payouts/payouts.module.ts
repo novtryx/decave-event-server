@@ -6,12 +6,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Withdrawal } from './entities/withdrawal.entity';
 import { BankAccount } from './entities/bank-account.entity';
 import { Attendees } from 'src/attendees/attendees.entity';
+import { Vote } from 'src/vote/vote.entity';
 
 @Module({
   providers: [PayoutsService],
   controllers: [PayoutsController],
     imports: [
-    TypeOrmModule.forFeature([Withdrawal, BankAccount, Attendees]), // 👈 make sure all three are here
+    TypeOrmModule.forFeature([Withdrawal, BankAccount, Attendees, Vote]), // 👈 make sure all three are here
     MailModule,
   ],
 

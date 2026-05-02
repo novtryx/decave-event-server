@@ -7,6 +7,7 @@ import {
     ManyToOne,
     JoinColumn,
     OneToMany,
+    Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { VoteVisit } from './voteVisits.entity';
@@ -24,6 +25,7 @@ export enum PricingType {
     PAID = "paid",
 }
 
+@Index(['title', 'userId', 'id'])
 @Entity()
 export class Vote {
     @PrimaryGeneratedColumn('uuid')

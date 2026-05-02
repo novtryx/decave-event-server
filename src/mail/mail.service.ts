@@ -7,6 +7,7 @@ import { verifyEmailTemplate } from './template/verify.mail';
 import { withdrawalRequestTemplate } from './template/withdrawal.mail';
 import { eventApprovalTemplate } from './template/eventApproval.mail';
 import { VoteApprovalTemplate } from './template/voteApproval.mail';
+import { reminderEmailTemplate } from './template/reminder.mail';
 
 @Injectable()
 export class MailService {
@@ -160,6 +161,52 @@ async sendVoteApprovalRequestEmail({
         </div>
       </div>
     `,
+  });
+}
+
+async sendReminderEmail({
+  bccEmails,
+  event,
+  daysUntil,
+}: {
+  bccEmails: string[];
+  event: {
+    title: string;
+    eventDate: Date;
+    venue: string;
+    address: string;
+    banner: string | null;
+  };
+  daysUntil: number;
+}) {
+  const eventDate = new Date(event.eventDate);
+
+  const formattedDate = eventDate.toLocaleDateString('en-NG', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const formattedTime = eventDate.toLocaleTimeString('en-NG', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  await this.transporter.sendMail({
+    from: '"DeCave" <info@decavemgt.com>',
+    to: 'info@novtryx.com',          // sender appears as recipient
+    bcc: bccEmails.join(','),           // all attendees get it privately
+    subject: `${daysUntil === 1 ? "Tomorrow!" : `${daysUntil} days to go!`} — ${event.title} 🎟`,
+    html: reminderEmailTemplate({
+      eventTitle: event.title,
+      eventDate: formattedDate,
+      eventTime: formattedTime,
+      eventVenue: event.venue,
+      eventAddress: event.address,
+      daysUntil,
+      banner: event.banner,
+    }),
   });
 }
 }

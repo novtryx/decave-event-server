@@ -31,6 +31,7 @@ export class EventsController {
   create(@Body() dto: CreateEventDto, @Request() req) {
     return this.eventsService.create(dto, req.user.id);
   }
+  
 @UseGuards(JwtAuthGuard)
 @Get('dashboard-overview') 
 getDashboardOverview(@Req() req: any) {

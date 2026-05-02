@@ -5,9 +5,10 @@ import { PaystackController } from './paystack.controller';
 import { AttendeesModule } from '../attendees/attendees.module';
 import { EventsModule } from '../events/events.module';
 import { MailModule } from '../mail/mail.module';
+import { VoteModule } from '../vote/vote.module';
 
 @Module({
-  imports: [AttendeesModule, EventsModule, MailModule],
+  imports: [AttendeesModule, EventsModule, MailModule, VoteModule],
   controllers: [PaystackController],
   providers: [PaystackService],
 })

@@ -13,12 +13,16 @@ import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { SaveBankAccountDto } from './dto/save-bank-account.dto';
 import { MailService } from '../mail/mail.service';
 import { withdrawalRequestTemplate } from '../mail/template/withdrawal.mail';
+import { PricingType, Vote } from 'src/vote/vote.entity';
 
 @Injectable()
 export class PayoutsService {
   constructor(
     @InjectRepository(Withdrawal)
     private readonly withdrawalRepo: Repository<Withdrawal>,
+
+    @InjectRepository(Vote)
+    private readonly voteRepo: Repository<Vote>,
 
     @InjectRepository(BankAccount)
     private readonly bankAccountRepo: Repository<BankAccount>,
@@ -31,46 +35,61 @@ export class PayoutsService {
 
   // ─── Summary ────────────────────────────────────────────────────────────────
 
-  async getSummary(userId: number) {
-  // Revenue from events where organizerPays = true (organizer bears 6.5% fee)
-  const organizerPaysResult = await this.attendeesRepo
-    .createQueryBuilder('attendee')
-    .innerJoin('attendee.event', 'event')
-    .where('event.userId = :userId', { userId })
-    .andWhere('event.organizerPays = :val', { val: true })
-    .select('SUM(attendee.amount)', 'total')
-    .getRawOne();
+async getSummary(userId: number) {
+  userId = Number(userId);
 
-  const organizerPaysRevenue = Number(organizerPaysResult?.total ?? 0);
-  const organizerPaysNet = organizerPaysRevenue * (1 - 0.065); // deduct 6.5%
+  const userEvents = await this.attendeesRepo.query(
+    `SELECT id, organizerPays FROM event WHERE userId = ?`,
+    [userId],
+  );
 
-  // Revenue from events where organizerPays = false (attendee already paid the fee)
-  const attendeePaysResult = await this.attendeesRepo
-    .createQueryBuilder('attendee')
-    .innerJoin('attendee.event', 'event')
-    .where('event.userId = :userId', { userId })
-    .andWhere('event.organizerPays = :val', { val: false })
-    .select('SUM(attendee.amount)', 'total')
-    .getRawOne();
+  let eventRevenue = 0;
 
-  const attendeePaysRevenue = Number(attendeePaysResult?.total ?? 0);
+  if (userEvents.length > 0) {
+    const eventIds = userEvents.map((e: any) => e.id);
 
-  // Total revenue = clean attendee-pays revenue + net organizer-pays revenue
-  const totalRevenue = attendeePaysRevenue + organizerPaysNet;
+    const attendees = await this.attendeesRepo.query(
+      `SELECT a.amount, a.eventId FROM attendees a WHERE a.eventId IN (${eventIds.map(() => '?').join(',')})`,
+      eventIds,
+    );
 
-  // total withdrawn = sum of completed withdrawals only
-  const withdrawnResult = await this.withdrawalRepo
-    .createQueryBuilder('w')
-    .where('w.userId = :userId', { userId })
-    .andWhere('w.status = :status', { status: 'completed' })
-    .select('SUM(w.amount)', 'total')
-    .getRawOne();
+    eventRevenue = attendees.reduce((sum: number, a: any) => {
+      const event = userEvents.find((e: any) => e.id === a.eventId || e.id === Number(a.eventId));
+      const amount = Number(a.amount);
+      if (!event) return sum;
+      return sum + (event.organizerPays == 1 || event.organizerPays == true
+        ? amount * (1 - 0.065)
+        : amount);
+    }, 0);
+  }
 
-  const totalWithdrawn = Number(withdrawnResult?.total ?? 0);
+  const votes = await this.voteRepo.find({
+    where: { userId, pricing: PricingType.PAID },
+  });
+
+  const votingRevenue = votes.reduce((acc, vote) => {
+    const totalVotesCast = (vote.contestants ?? []).reduce(
+      (sum, c) => sum + Number(c.totalVote),
+      0,
+    );
+    const base = totalVotesCast * Number(vote.pricePerVote);
+    return acc + (vote.organizerPays ? base * (1 - 0.065) : base);
+  }, 0);
+
+  const totalRevenue = eventRevenue + votingRevenue;
+
+  const withdrawn = await this.withdrawalRepo.query(
+    `SELECT COALESCE(SUM(amount), 0) as total FROM withdrawal WHERE userId = ? AND status = 'completed'`,
+    [userId],
+  );
+
+  const totalWithdrawn = Number(withdrawn[0]?.total ?? 0);
   const availableBalance = totalRevenue - totalWithdrawn;
 
   return {
     totalRevenue,
+    eventRevenue,
+    votingRevenue,
     totalWithdrawn,
     availableBalance,
   };

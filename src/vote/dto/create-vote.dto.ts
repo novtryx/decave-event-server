@@ -10,7 +10,7 @@ import {
   IsDateString,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { PricingType } from '../vote.entity';
 
 export class CreateContestantDto {
@@ -34,6 +34,7 @@ export class CreateContestantDto {
 export class CreateVoteDto {
   @IsString()
   @IsNotEmpty()
+   @Transform(({ value }) => value?.trim())
   title: string;
 
   @IsString()

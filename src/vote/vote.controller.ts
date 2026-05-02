@@ -89,9 +89,12 @@ export class VoteController {
     return this.votesService.findAll();
   }
 
+  
+
+
   // GET /votes/search?title= — public
-  @Get('search')
-  findByTitle(@Query('title') title: string) {
+  @Get('title/:title')
+  findByTitle(@Param('title') title: string) {
     return this.votesService.findByTitle(title);
   }
 
@@ -112,7 +115,7 @@ export class VoteController {
   @Get(':voteId/contestants/:contestantId')
   findContestant(
     @Param('voteId') voteId: string,
-    @Param('contestantId') contestantId: string,
+    @Param('contestantId') contestantId: string,  
   ) {
     return this.votesService.findContestantByVoteAndId(voteId, contestantId);
   }

@@ -7,6 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Attendees } from 'src/attendees/attendees.entity';
@@ -23,6 +24,7 @@ export class Ticket {
   startDate: Date;
   stopdate: Date;
 }
+
 
 @Entity()
 export class Event {
@@ -47,7 +49,7 @@ export class Event {
   @Column({ type: 'varchar' })
   address: string;
 
-    @Column({ type: 'datetime' }) // ✅ was timestamp
+  @Column({ type: 'datetime' }) // ✅ was timestamp
   eventDate: Date;
 
 
@@ -60,7 +62,7 @@ export class Event {
   @Column({ type: 'varchar', nullable: true, default: null })
   banner: string | null;
 
-    @Column({ type: 'json', nullable: true }) // ✅ was jsonb default []
+  @Column({ type: 'json', nullable: true }) // ✅ was jsonb default []
   otherImages:string[] | null;
 
   @OneToMany(() => EventVisit, (visit) => visit.event)

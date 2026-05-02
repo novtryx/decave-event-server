@@ -6,10 +6,12 @@ import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { EventsService } from '../events/events.service';
 import { MinLength } from 'class-validator';
 import { Ticket } from './../events/event.entity';
+import { InitializeVotePaymentDto } from './dto/initialize-vote-payment.dto';
+import { VoteService } from './../vote/vote.service';
 
 @Controller('paystack')
 export class PaystackController {
-  constructor(private readonly paystackService: PaystackService, private readonly eventService: EventsService) {}
+  constructor(private readonly paystackService: PaystackService, private readonly eventService: EventsService, private readonly voteService: VoteService) {}
 
   /** Endpoint for client to start payment */
 @Post('initialize')
@@ -74,6 +76,62 @@ async initialize(@Body() body: InitializePaymentDto[]) {
 }
 
  
+@Post('initialize/vote')
+async initializeVoting(@Body() body: InitializeVotePaymentDto) {
+  const competition = await this.voteService.findOneById(body.competitionId);
+
+  if (!competition) {
+    throw new NotFoundException(`Competition not found`);
+  }
+
+  if (!competition.approved) {
+    throw new BadRequestException('This competition is not yet active');
+  }
+
+  const now = new Date();
+  if (now < new Date(competition.voteStart)) {
+    throw new BadRequestException('Voting has not started yet');
+  }
+  if (now > new Date(competition.voteEnd)) {
+    throw new BadRequestException('Voting has ended');
+  }
+
+  const contestant = competition.contestants.find(
+    (c) => c.id === body.contestantId,
+  );
+
+  if (!contestant) {
+    throw new NotFoundException(`Contestant not found`);
+  }
+
+  let totalAmount = competition.pricePerVote * body.qty;
+
+  if (!competition.organizerPays) {
+    totalAmount = totalAmount * 1.065; // voter bears 6% fee
+  }
+
+  const voteMetadata = {
+    type: 'voting' as const,
+    competitionId: body.competitionId,
+    contestantId: body.contestantId,
+    qty: body.qty,
+    voterEmail: body.voterEmail,
+    voterName: body.voterName,
+    orgPays: competition.organizerPays,
+  };
+
+  const payment = await this.paystackService.initializePaymentWithMetadata(
+    voteMetadata,
+    body.voterEmail,
+    totalAmount,
+    'voting',
+  );
+
+  return {
+    totalAmount,
+    payment,
+  };
+}
 
   @Post('webhook')
 async handleWebhook(
