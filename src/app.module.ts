@@ -15,11 +15,14 @@ import { UploadModule } from './upload/upload.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { VoteModule } from './vote/vote.module';
 import { ReminderModule } from './reminder/reminder.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { NewsletterModule } from './newsletter/newsletter.module';
+
 
 
 @Module({
   imports: [
- 
+
      ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRootAsync({
         inject: [ConfigService],
@@ -34,6 +37,13 @@ import { ReminderModule } from './reminder/reminder.module';
           synchronize: false, 
         }),
       }), 
+       MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.get<string>('MONGO_URI'),
+      }),
+    }),
+      
 
     UsersModule,
 
@@ -54,6 +64,8 @@ import { ReminderModule } from './reminder/reminder.module';
     VoteModule,
 
     ReminderModule,
+
+    NewsletterModule,
 
   ],
   controllers: [AppController],

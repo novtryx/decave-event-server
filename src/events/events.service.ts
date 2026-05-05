@@ -122,6 +122,44 @@ export class EventsService {
     };
   }
 
+
+  async updateTicketSaleDates(
+  eventId: number,
+  ticketId: string,
+  userId: number,
+  dto: { startDate?: string; stopdate?: string },
+): Promise<Event> {
+  const event = await this.eventsRepository.findOneBy({ id: eventId });
+
+  if (!event) throw new NotFoundException(`Event #${eventId} not found`);
+  if (event.userId !== userId) throw new ForbiddenException('You do not own this event');
+
+  if (!event.tickets || !Array.isArray(event.tickets)) {
+    throw new BadRequestException('Event has no tickets');
+  }
+
+  const ticketIndex = event.tickets.findIndex((t) => t.id === ticketId);
+  if (ticketIndex === -1) throw new NotFoundException(`Ticket "${ticketId}" not found`);
+
+  event.tickets[ticketIndex] = {
+    ...event.tickets[ticketIndex],
+    ...(dto.startDate && { startDate: new Date(dto.startDate) }),
+    ...(dto.stopdate && { stopdate: new Date(dto.stopdate) }),
+  };
+
+  await this.eventsRepository
+    .createQueryBuilder()
+    .update(Event)
+    .set({ tickets: event.tickets })
+    .where('id = :id', { id: eventId })
+    .execute();
+
+  // ✅ Fetch updated event and assert non-null — safe because we confirmed it exists above
+  const updated = await this.eventsRepository.findOneBy({ id: eventId });
+  if (!updated) throw new NotFoundException(`Event #${eventId} not found after update`);
+
+  return updated;
+}
   // ─── Track Visit ──────────────────────────────────────────────
   async trackVisit(eventId: number, ip?: string, userAgent?: string) {
     const event = await this.eventsRepository.findOne({

@@ -220,18 +220,56 @@ export class VoteService {
   }
 
   // ─── Get Votes With Visit Counts By Organizer Email ───────────
-  async findVotesWithVisitsByEmail(email: string): Promise<Vote[]> {
-    const votes = await this.votesRepository
-      .createQueryBuilder('vote')
-      .leftJoinAndSelect('vote.user', 'user')
-      .leftJoin('vote.visits', 'visit')
-      .loadRelationCountAndMap('vote.visitsCount', 'vote.visits')
-      .where('user.email = :email', { email })
-      .orderBy('vote.createdAt', 'DESC')
-      .getMany();
+ async findVotesWithVisitsByEmail(email: string): Promise<any[]> {
+  const votes = await this.votesRepository
+    .createQueryBuilder('vote')
+    .leftJoinAndSelect('vote.user', 'user')
+    .leftJoin('vote.visits', 'visit')
+    .loadRelationCountAndMap('vote.visitsCount', 'vote.visits')
+    .where('user.email = :email', { email })
+    .orderBy('vote.createdAt', 'DESC')
+    .getMany();
 
-    return votes; // empty array is fine — caller decides
-  }
+  return votes.map((vote) => {
+    const contestants = vote.contestants ?? [];
+   const totalVotes = contestants.reduce(
+  (sum, c) => sum + (Number(c.totalVote) || 0),
+  0,
+);
+
+    return {
+      id: vote.id,
+      title: vote.title,
+      description: vote.description,
+      edition: vote.edition,
+      voteStart: vote.voteStart,
+      voteEnd: vote.voteEnd,
+      pricing: vote.pricing,
+      pricePerVote: vote.pricePerVote,
+      showLiveCount: vote.showLiveCount,
+      publicLeaderboard: vote.publicLeaderboard,
+      banner: vote.banner,
+      approved: vote.approved,
+      organizerPays: vote.organizerPays,
+      oneVotePerDevice: vote.oneVotePerDevice,
+      createdAt: vote.createdAt,
+      updatedAt: vote.updatedAt,
+      visitsCount: (vote as any).visitsCount ?? 0,
+      totalVotes,
+      contestantsCount: contestants.length,
+      totalRevenue: totalVotes * vote.pricePerVote
+      // Map contestants but strip bulk data if needed, or keep full list
+      // contestants: contestants.map((c) => ({
+      //   id: c.id,
+      //   name: c.name,  
+      //   tagline: c.tagline,
+      //   category: c.category,
+      //   photoUrl: c.photoUrl, 
+      //   voteCount: c.totalVote ?? 0, // rename to match frontend shape
+      // })),
+    };
+  });
+}
 
   // ─── Cast Vote (increment contestant totalVote) ───────────────
   async castVote(voteId: string, dto: CastVoteDto, ip?: string): Promise<Vote | null> {

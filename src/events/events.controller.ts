@@ -19,6 +19,7 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { UpdateTicketQtyDto } from './dto/update-ticket-qty.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { UpdateTicketSaleDatesDto } from './dto/update-ticket-sales-dates.dto';
 
 @Controller('events')
 export class EventsController {
@@ -46,6 +47,19 @@ getDashboardOverview(@Req() req: any) {
   ) {
     return this.eventsService.findEventsWithAttendeesByEmail(req.user.email);
   }
+
+
+  // events.controller.ts
+@Patch(':eventId/tickets/:ticketId/sale-dates')
+@UseGuards(JwtAuthGuard)
+updateTicketSaleDates(
+  @Param('eventId', ParseIntPipe) eventId: number,
+  @Param('ticketId') ticketId: string,
+  @Body() dto: UpdateTicketSaleDatesDto,
+  @Req() req,
+) {
+  return this.eventsService.updateTicketSaleDates(eventId, ticketId, req.user.id, dto);
+}
 
   @Get('approved')
 async getApprovedEvents(
