@@ -35,7 +35,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
           database: config.get<string>('DB_NAME'),
           autoLoadEntities: true,
           synchronize: false, 
-        }),
+        }), 
       }), 
        MongooseModule.forRootAsync({
       inject: [ConfigService],
@@ -43,6 +43,13 @@ import { NewsletterModule } from './newsletter/newsletter.module';
         uri: config.get<string>('MONGO_URI'),
       }),
     }),
+      MongooseModule.forRootAsync({
+      connectionName: 'secondary', // 👈 name it anything
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.get<string>('MONGO_URI_2'), // 👈 add this to your .env
+      }),
+      }), 
       
 
     UsersModule,

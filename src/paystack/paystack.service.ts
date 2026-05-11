@@ -6,6 +6,7 @@ import { EventsService } from '../events/events.service';
 import { VoteService } from '../vote/vote.service'
 import * as QRCode from 'qrcode';
 import { MailService } from 'src/mail/mail.service';
+import { NewsletterService } from 'src/newsletter/newsletter.service';
 
 type PaymentType = 'event' | 'voting';
 
@@ -44,6 +45,7 @@ export class PaystackService {
     private readonly eventService: EventsService,
     private readonly votingService: VoteService,
     private readonly mailService: MailService,
+    private readonly newsletterService: NewsletterService,
   ) {}
 
   // ── Initialize ──────────────────────────────────────────────────────────────
@@ -211,6 +213,9 @@ export class PaystackService {
             console.error(`Failed to send email to ${item.email}:`, mailError);
           }
 
+          await this.newsletterService.autoSubscribeEmail(item.email);
+
+
           return attendee;
         } catch (err) {
           console.error('Error processing ticket item:', item, err);
@@ -258,6 +263,8 @@ private async handleSuccessfulVotePayment(data: any) {
 
     console.log(`Recorded ${item.qty} vote(s) for contestant ${item.contestantId}`);
 
+    await this.newsletterService.autoSubscribeEmail(item.voterEmail);
+  
     // try {
     //   await this.mailService.sendVoteConfirmationEmail({
     //     voterName: item.voterName,
