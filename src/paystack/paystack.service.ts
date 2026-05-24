@@ -1,5 +1,5 @@
 // src/paystack/paystack.service.ts
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
 import axios from 'axios';
 import { AttendeesService } from './../attendees/attendees.service';
 import { EventsService } from '../events/events.service';
@@ -47,6 +47,39 @@ export class PaystackService {
     private readonly mailService: MailService,
     private readonly newsletterService: NewsletterService,
   ) {}
+
+
+  private async resolveAccount(accountNumber: string, bankCode: string) {
+    const res = await fetch(
+      `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_LIVE_SECRET_KEY}`,
+        },
+      },
+    );
+
+    const data = await res.json();
+
+    if (!data.status) {
+      throw new BadRequestException(
+        data.message ?? 'Could not resolve account.',
+      );
+    }
+
+    return data.data as {
+      account_name: string;
+      account_number: string;
+    };
+  }
+
+  async verifyBank(accountNumber: string, bankCode: string) {
+    return this.resolveAccount(accountNumber, bankCode);
+  }
+
+
+
+
 
   // ── Initialize ──────────────────────────────────────────────────────────────
 

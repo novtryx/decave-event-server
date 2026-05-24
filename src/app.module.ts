@@ -17,6 +17,7 @@ import { VoteModule } from './vote/vote.module';
 import { ReminderModule } from './reminder/reminder.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NewsletterModule } from './newsletter/newsletter.module';
+import { InfluencersModule } from './influencers/influencers.module';
 
 
 
@@ -73,6 +74,8 @@ import { NewsletterModule } from './newsletter/newsletter.module';
     ReminderModule,
 
     NewsletterModule,
+
+    InfluencersModule,
 
   ],
   controllers: [AppController],

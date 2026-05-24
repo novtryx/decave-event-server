@@ -12,7 +12,7 @@ async function bootstrap() {
       'https://decavemgt.com',
       'https://www.decavemgt.com',
       process.env.FRONTEND_URL
-    ],
+    ], 
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   });

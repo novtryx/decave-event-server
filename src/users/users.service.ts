@@ -48,7 +48,7 @@ export class UsersService {
         await this.mailService.sendWelcomeEmail({
           user: { name: user.name, email: user.email },
         });
-      } catch (mailError) {
+      } catch (mailError:any) {
         console.error('Failed to send welcome email:', mailError.message);
       }
 

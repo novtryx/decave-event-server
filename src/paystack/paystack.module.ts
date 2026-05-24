@@ -12,5 +12,6 @@ import { NewsletterModule } from 'src/newsletter/newsletter.module';
   imports: [AttendeesModule, EventsModule, MailModule, VoteModule, NewsletterModule],
   controllers: [PaystackController],
   providers: [PaystackService],
+  exports:[PaystackService]
 })
 export class PaystackModule {}

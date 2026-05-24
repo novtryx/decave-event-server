@@ -75,14 +75,14 @@ export class PayoutsController {
     return this.payoutsService.deleteBankAccount(req.user.id);
   }
 
-   @UseGuards(JwtAuthGuard)
+  //  @UseGuards(JwtAuthGuard)
 @Get('banks')
 getBanks() {
   return this.payoutsService.getBanks();
 }
 
 // Resolve account
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
 @Get('resolve-account')
 resolveAccount(
   @Query('accountNumber') accountNumber: string,
