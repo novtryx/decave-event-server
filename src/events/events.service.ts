@@ -81,18 +81,23 @@ export class EventsService {
   }
 
   // ─── Approve Event ────────────────────────────────────────────
-  async approveEvent(id: number) {
-    const event = await this.eventsRepository.findOneBy({ id });
+  async toggleApproval(id: number) {
+  const event = await this.eventsRepository.findOneBy({ id });
 
-    if (!event) {
-      throw new NotFoundException('Event not found');
-    }
-
-    event.approved = true;
-    await this.eventsRepository.save(event);
-
-    return { message: 'Event approved successfully' };
+  if (!event) {
+    throw new NotFoundException('Event not found');
   }
+
+  event.approved = !event.approved;
+  await this.eventsRepository.save(event);
+
+  return {
+    message: event.approved
+      ? 'Event approved successfully'
+      : 'Event unapproved successfully',
+    approved: event.approved,
+  };
+}
 
   // ─── Get All Events ───────────────────────────────────────────
   async findAll(): Promise<Event[]> {
@@ -104,6 +109,59 @@ export class EventsService {
       order: { createdAt: 'DESC' },
     });
   }
+
+  // ─── Admin: Get All Events With Sales & Revenue ───────────────────────────────
+async findAllWithStats(page = 1, limit = 20): Promise<any> {
+  const skip = (page - 1) * limit;
+
+  const [events, total] = await this.eventsRepository
+    .createQueryBuilder('event')
+    .leftJoinAndSelect('event.user', 'user')
+    .leftJoinAndSelect('event.attendees', 'attendee')
+    .leftJoin('event.visits', 'visit')
+    .loadRelationCountAndMap('event.visitsCount', 'event.visits')
+    .orderBy('event.createdAt', 'DESC')
+    .skip(skip)
+    .take(limit)
+    .getManyAndCount()
+
+  return {
+    data: events.map((event: any) => ({
+      id: event.id,
+      title: event.title,
+      type: event.type,
+      eventDate: event.eventDate,
+      venue: event.venue,
+      address: event.address,
+      approved: event.approved,
+      createdAt: event.createdAt,
+      organizer: event.user
+        ? {
+            id: event.user.id,
+            name: event.user.name,
+            email: event.user.email,
+            businessName: event.user.businessName,
+          }
+        : null,
+      // ticketsSold: event.attendees?.length ?? 0,
+      visitsCount: event.visitsCount ?? 0,
+     revenue: (event.tickets ?? []).reduce(
+  (sum: number, t: any) => sum + Number(t.qtySold) * Number(t.price),
+  0,
+),
+ticketsSold: (event.tickets ?? []).reduce(
+  (sum: number, t: any) => sum + Number(t.qtySold),
+  0,
+),
+
+      tickets: event.tickets ?? [],
+    })),
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
 
   // ─── Get Approved Events ──────────────────────────────────────
   async findApproved(page = 1, limit = 10) {

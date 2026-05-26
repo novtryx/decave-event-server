@@ -72,9 +72,9 @@ async getApprovedEvents(
   );
 }
 
-  @Get('approve/:id')
+  @Patch(':id/toggle-approval')
 async approve(@Param('id') id: number) {
-  return this.eventsService.approveEvent(Number(id));
+  return this.eventsService.toggleApproval(Number(id));
 }
 
 @Post(':id/visit')
@@ -89,11 +89,21 @@ async trackEventVisit(
   );
 }
 
+// @UseGuards(AdminGuard)
+@Get('admin/all-stats')
+findAllWithStats(
+  @Query('page') page = 1,
+  @Query('limit') limit = 20,
+) {
+  return this.eventsService.findAllWithStats(Number(page), Number(limit));
+}
   // GET /events — public
   @Get()
   findAll() {
     return this.eventsService.findAll(); 
   }
+
+  
 
   // GET /events/search?title=concert — public
   @Get('search')

@@ -11,11 +11,12 @@ async function bootstrap() {
       'https://decave-events.vercel.app',
       'https://decavemgt.com',
       'https://www.decavemgt.com',
+      "https://admin.decavemgt.com",
       process.env.FRONTEND_URL
     ], 
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
-  });
+  }); 
   app.use( 
   helmet({ 
     contentSecurityPolicy: process.env.NODE_ENV === 'production', // CSP on in prod, off in dev
