@@ -25,34 +25,38 @@ private readonly withdrawalModel: Model<WithdrawalHistoryDocument>,
         private readonly paystackService: PaystackService,
     ){}
 
-    private generateReferralCode = (fullName: string): string => {
-  // 1. Get initials
-  const initials = fullName
-    .split(' ')
-    .filter(Boolean)
-    .map(name => name[0])
-    .join('')
-    .toUpperCase();
+   private generateReferralCode = (username: string): string => {
+  // 1. Generate 2 random digits (10-99)
+  const randomNumbers = Math.floor(10 + Math.random() * 90);
 
-  // 2. Generate 4 random digits
-  const randomNumbers = Math.floor(1000 + Math.random() * 9000);
+  // 2. Trim username to 8 chars if username + 2 digits would exceed 10
+  const maxUsernameLength = 10 - String(randomNumbers).length; // always 8
+  const trimmedUsername = username.slice(0, maxUsernameLength).toUpperCase();
 
-  // 3. Combine
-  return `DC${randomNumbers}${initials}`;
+  // 3. Combine: 2 digits at front + username (max 8 chars)
+  return `${randomNumbers}${trimmedUsername}`;
 };
+
 
     
 async register(dto: CreateInfluencerDto): Promise<{ message: string }> {
     const existing = await this.influencerModel.findOne({
       email: dto.email,
     });
+        const existinguser = await this.influencerModel.findOne({
+      email: dto.username,
+    });
+
+
 
     if (existing) throw new ConflictException('Email already in use');
+
+    if (existinguser) throw new ConflictException('Username Already taken')
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     const referralCode =
-      this.generateReferralCode(dto.fullName);
+      this.generateReferralCode(dto.username);
 
     const influencer = new this.influencerModel({
       ...dto,
