@@ -34,7 +34,7 @@ private readonly withdrawalModel: Model<WithdrawalHistoryDocument>,
   const trimmedUsername = username.slice(0, maxUsernameLength).toUpperCase();
 
   // 3. Combine: 2 digits at front + username (max 8 chars)
-  return `${randomNumbers}${trimmedUsername}`;
+  return `${trimmedUsername}${randomNumbers}`;
 };
 
 
