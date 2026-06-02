@@ -127,14 +127,31 @@ async register(dto: CreateInfluencerDto): Promise<{ message: string }> {
   }
 
   // ─── GET ALL ─────────────────────────────────────────────
-  async findAll() {
-    const influencers = await this.influencerModel.find();
+ async findAll(page: number = 1, limit: number = 10) {
+  const skip = (page - 1) * limit;
 
-    return influencers.map((i) => {
-      const { password, ...rest } = i.toObject();
-      return rest;
-    });
-  }
+  const [influencers, total] = await Promise.all([
+    this.influencerModel.find().skip(skip).limit(limit),
+    this.influencerModel.countDocuments(),
+  ]);
+
+  const data = influencers.map((i) => {
+    const { password, ...rest } = i.toObject();
+    return rest;
+  });
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPrevPage: page > 1,
+    },
+  };
+}
 
   // ─── GET ONE ─────────────────────────────────────────────
   async findOne(id: string) {
@@ -482,5 +499,47 @@ async getTransactionHistory(
     },
   };
 }
+
+async findAllWithdrawals(page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
+
+  const [withdrawals, total] = await Promise.all([
+    this.withdrawalModel.aggregate([
+      {
+        $addFields: {
+          sortOrder: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$status', 'pending'] }, then: 0 },
+                { case: { $eq: ['$status', 'completed'] }, then: 1 },
+                { case: { $eq: ['$status', 'failed'] }, then: 2 },
+              ],
+              default: 3,
+            },
+          },
+        },
+      },
+      { $sort: { sortOrder: 1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $unset: 'sortOrder' },
+    ]),
+    this.withdrawalModel.countDocuments(),
+  ]);
+
+  return {
+    data: withdrawals,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPrevPage: page > 1,
+    },
+  };
+}
+
+
 
 }

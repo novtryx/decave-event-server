@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { InfluencersService } from './influencers.service';
 import { CreateInfluencerDto } from './dto/create-influencer.dto';
 import { LoginInfluencerDto } from './dto/login-influencer.dto';
@@ -8,6 +8,13 @@ import { InfluencerJwtAuthGuard } from 'src/auth/influencer-jwt.guard';
 export class InfluencersController {
     constructor(private readonly influencersService:InfluencersService){}
 
+    @Get()
+findAll(
+  @Query('page') page: number = 1,
+  @Query('limit') limit: number = 10,
+) {
+  return this.influencersService.findAll(+page, +limit);
+}
 
      @Post('register')
       @HttpCode(HttpStatus.CREATED)
@@ -59,12 +66,23 @@ export class InfluencersController {
 async getTransactionHistory(
  @Req() req: { user: { id: string; }},
   @Query('page') page?: string,
-  @Query('limit') limit?: string,
+  @Query('limit') limit?: string, 
 ) {
   return this.influencersService.getTransactionHistory(
     req.user.id,
     page ? parseInt(page, 10) : 1,
     limit ? parseInt(limit, 10) : 20,
   );
+} 
+
+@Get('withdrawals')
+findAllWithdrawals(@Query('page') page = 1, @Query('limit') limit = 10) {
+  return this.influencersService.findAllWithdrawals(+page, +limit);
 }
+
+@Patch('withdrawals/:id/status')
+updateStatus(@Param('id') id: string, @Body('status') status: 'pending' | 'completed' | 'failed') {
+  return this.influencersService.updateWithdrawalStatus(id, status);
+}
+
 }
