@@ -29,7 +29,7 @@ findAll(
       }
 
       @UseGuards(InfluencerJwtAuthGuard)
-      @Get()
+      @Get('/me')
       me(
         @Req() req: { user: { id: string; } }
       ){
