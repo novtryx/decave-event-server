@@ -64,7 +64,7 @@ async register(dto: CreateInfluencerDto): Promise<{ message: string }> {
       referralCode,
       buyers: 0,
       amount: 0,
-      influencersTakesPercentage: dto.influencersTakesPercentage ?? false,
+      influencersTakesPercentage:false,
       percentage: dto.percentage ?? 10,
     });
 
