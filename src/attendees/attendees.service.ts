@@ -1,5 +1,5 @@
 // src/attendees/attendees.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Attendees } from './attendees.entity';
@@ -31,6 +31,24 @@ export class AttendeesService {
     return attendee;
   }
 
+  async checkIn(attendeeId: string, eventId: number): Promise<Attendees> {
+  const attendee = await this.attendeesRepo.findOne({
+    where: { id: attendeeId, eventId },
+  });
+
+  if (!attendee) {
+    throw new NotFoundException(
+      `Attendee ${attendeeId} not found for event ${eventId}`,
+    );
+  }
+
+  if (attendee.checkedIn) {
+    throw new ConflictException(`Attendee ${attendeeId} is already checked in`);
+  }
+
+  attendee.checkedIn = true;
+  return this.attendeesRepo.save(attendee);
+}
   // Add this to your existing AttendeesService
 
 async findByEventId(

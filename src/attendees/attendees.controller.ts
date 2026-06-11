@@ -19,9 +19,16 @@ export class AttendeesController {
   findAll() {
     return this.attendeesService.findAll();
   }
+ 
+  @Post('check-in') 
+ async checkIn(
+  @Body() body: { attendeeId: string; eventId: number },
+) {
+  return this.attendeesService.checkIn(body.attendeeId, body.eventId);
+}
 
   @Get("ref")
-  findByRef(@Query("ref") ref: string) {
+  findByRef(@Query('ref') ref: string) {
     return this.attendeesService.findByPaystackId(ref);
   }
 
